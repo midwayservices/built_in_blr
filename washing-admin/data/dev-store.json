@@ -1,0 +1,7 @@
+{
+  "updatedAt": "1970-01-01T00:00:00.000Z",
+  "machines": [
+    { "id": "m1", "name": "Washer A", "status": "idle", "timeLeftMinutes": 0, "updatedAt": "1970-01-01T00:00:00.000Z" },
+    { "id": "m2", "name": "Washer B", "status": "running", "timeLeftMinutes": 30, "updatedAt": "1970-01-01T00:00:00.000Z" }
+  ]
+}
