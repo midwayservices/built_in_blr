@@ -11,7 +11,8 @@ async function readFromEdge(): Promise<MachinesResponse | null> {
     const updatedAt = (await edgeGet<string>('updatedAt')) || new Date().toISOString();
     if (machines) return { machines, updatedAt };
     return null;
-  } catch {
+  } catch (error) {
+    console.error('Error reading from Edge Config:', error);
     return null;
   }
 }
@@ -38,6 +39,36 @@ function readFromDev(): MachinesResponse {
   return JSON.parse(raw);
 }
 
+function writeToDev(data: MachinesResponse): MachinesResponse {
+  ensureDevStore();
+  fs.writeFileSync(DEV_STORE, JSON.stringify(data, null, 2));
+  return data;
+}
+
+function extractEdgeConfigId(conn: string): string {
+  // Handle multiple formats:
+  // 1. Direct ecfg_ ID: "ecfg_xxxxxxxxxxxxxxx"
+  // 2. Full URL: "https://edge-config.vercel.com/ecfg_xxxxx?token=xxx"
+  // 3. Connection string with encoded ID
+  
+  if (conn.includes('edge-config.vercel.com')) {
+    // Extract from full URL format
+    const url = new URL(conn);
+    const pathId = url.pathname.slice(1); // remove leading '/'
+    // pathId might be "ecfg_xxx" or just the ID part
+    return pathId.includes('ecfg_') ? pathId : `ecfg_${pathId}`;
+  }
+  
+  // If it's just the ID, ensure it starts with ecfg_
+  if (!conn.startsWith('ecfg_')) {
+    console.warn(`Edge Config ID doesn't start with 'ecfg_': ${conn}`);
+    console.warn(`Please use the full Edge Config ID from Vercel dashboard starting with 'ecfg_'`);
+    return conn; // Return as-is and let API return detailed error
+  }
+  
+  return conn;
+}
+
 export async function getMachines(): Promise<MachinesResponse> {
   // Prefer Edge Config when EDGE_CONFIG is configured
   if (process.env.EDGE_CONFIG) {
@@ -45,4 +76,43 @@ export async function getMachines(): Promise<MachinesResponse> {
     if (fromEdge) return fromEdge;
   }
   return readFromDev();
+}
+
+export async function setMachines(next: Machine[]): Promise<MachinesResponse> {
+  const payload: MachinesResponse = {
+    updatedAt: new Date().toISOString(),
+    machines: next
+  };
+  
+  if (process.env.EDGE_CONFIG && process.env.VERCEL_API_TOKEN) {
+    try {
+      const base = 'https://api.vercel.com/v1/edge-config';
+      const id = extractEdgeConfigId(process.env.EDGE_CONFIG);
+      const token = process.env.VERCEL_API_TOKEN;
+      
+      const response = await fetch(`${base}/${id}/items`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          items: [
+            { operation: 'upsert', key: 'machines', value: next },
+            { operation: 'upsert', key: 'updatedAt', value: payload.updatedAt }
+          ]
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Edge Config API error: ${response.status}`);
+      }
+      
+      return payload;
+    } catch (error) {
+      console.error('Error writing to Edge Config:', error);
+    }
+  }
+  
+  return writeToDev(payload);
 }
