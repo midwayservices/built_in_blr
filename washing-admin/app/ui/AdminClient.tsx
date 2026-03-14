@@ -2,6 +2,26 @@
 import { useEffect, useState } from 'react';
 import type { Machine } from '@/lib/types';
 
+// Add global styles for responsive design
+if (typeof document !== 'undefined' && !document.getElementById('admin-mobile-styles')) {
+  const style = document.createElement('style');
+  style.id = 'admin-mobile-styles';
+  style.textContent = `
+    @media (max-width: 600px) {
+      [data-login-form] {
+        flex-direction: column;
+      }
+      [data-login-form] input {
+        width: 100%;
+      }
+      [data-login-form] button {
+        width: 100%;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
@@ -66,12 +86,12 @@ export default function AdminClient() {
     }
   };
 
-  if (authed === null) return <main style={styles.container}><h1>Admin</h1><p>Loading...</p></main>;
+  if (authed === null) return <main style={styles.container}><h1 style={styles.h1}>Admin</h1><p>Loading...</p></main>;
   if (!authed) {
     return (
       <main style={styles.container}>
-        <h1>Admin</h1>
-        <form onSubmit={login} style={{ display: 'flex', gap: 8 }}>
+        <h1 style={styles.h1}>Admin</h1>
+        <form onSubmit={login} style={styles.loginForm} data-login-form>
           <input
             type="password"
             value={password}
@@ -81,16 +101,16 @@ export default function AdminClient() {
           />
           <button type="submit" style={styles.button}>Login</button>
         </form>
-        {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
+        {error && <p style={styles.error}>{error}</p>}
       </main>
     );
   }
 
   return (
     <main style={styles.container}>
-      <h1>Admin</h1>
+      <h1 style={styles.h1}>Admin</h1>
       <p style={styles.meta}>Loaded at: {loadedAt ? new Date(loadedAt).toLocaleString() : '-'}</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+      <div style={styles.machinesGrid}>
         {machines.map((m, idx) => (
           <div key={m.id} style={styles.card}>
             <label style={styles.label}>Name</label>
@@ -122,8 +142,8 @@ export default function AdminClient() {
           </div>
         ))}
       </div>
-      {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+      {error && <p style={styles.error}>{error}</p>}
+      <div style={styles.buttonContainer}>
         <button onClick={save} disabled={saving} style={styles.button}>
           {saving ? 'Saving...' : 'Save'}
         </button>
@@ -141,11 +161,82 @@ export default function AdminClient() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: { maxWidth: 900, margin: '0 auto', padding: 24 },
-  card: { border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, background: '#fff' },
-  label: { display: 'block', fontSize: 12, color: '#6b7280', marginTop: 8, marginBottom: 4 },
-  input: { border: '1px solid #e5e7eb', borderRadius: 6, padding: 8, width: '100%' },
-  button: { padding: '10px 16px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer' },
-  meta: { color: '#6b7280', fontSize: 12 }
+  container: {
+    maxWidth: 900,
+    margin: '0 auto',
+    padding: '16px',
+    fontFamily: 'system-ui, Arial',
+    minHeight: '100vh'
+  },
+  h1: {
+    fontSize: 'clamp(24px, 6vw, 32px)',
+    marginTop: 0,
+    marginBottom: 16
+  },
+  loginForm: {
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap'
+  },
+  machinesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: 16,
+    marginTop: 16,
+    marginBottom: 16
+  },
+  card: {
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    padding: 16,
+    background: '#fff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  },
+  label: {
+    display: 'block',
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 8,
+    marginBottom: 4,
+    fontWeight: 500
+  },
+  input: {
+    border: '1px solid #e5e7eb',
+    borderRadius: 6,
+    padding: 8,
+    width: '100%',
+    boxSizing: 'border-box',
+    fontSize: '16px',
+    transition: 'border-color 0.2s'
+  },
+  button: {
+    padding: '10px 16px',
+    borderRadius: 6,
+    border: '1px solid #e5e7eb',
+    background: '#f9fafb',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 500,
+    transition: 'background-color 0.2s',
+    minWidth: 100
+  },
+  buttonContainer: {
+    display: 'flex',
+    gap: 8,
+    marginTop: 16,
+    flexWrap: 'wrap'
+  },
+  error: {
+    color: '#b91c1c',
+    padding: 12,
+    backgroundColor: '#fee2e2',
+    borderRadius: 6,
+    marginTop: 16
+  },
+  meta: {
+    color: '#6b7280',
+    fontSize: 12,
+    margin: 0
+  }
 };
 
